@@ -61,6 +61,13 @@
   }
   .shape-btn.active { background: #f59e0b; color: white; border-color: #f59e0b; }
   select.fi { cursor: pointer; }
+  .social-row { display: 'flex'; gap: '8px'; }
+  .social-input-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .social-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -79,11 +86,22 @@ const FONTS = [
   { label: 'Palatino', value: "'Palatino Linotype', 'Book Antiqua', Palatino, serif" },
 ];
 
+const SOCIALS = [
+  { key: 'linkedin',  label: 'LinkedIn',  color: '#0A66C2', abbr: 'in', placeholder: 'https://linkedin.com/in/yourname' },
+  { key: 'facebook',  label: 'Facebook',  color: '#1877F2', abbr: 'f',  placeholder: 'https://facebook.com/yourpage' },
+  { key: 'instagram', label: 'Instagram', color: '#E4405F', abbr: 'ig', placeholder: 'https://instagram.com/yourhandle' },
+  { key: 'x',         label: 'X (Twitter)', color: '#000000', abbr: 'X', placeholder: 'https://x.com/yourhandle' },
+  { key: 'youtube',   label: 'YouTube',   color: '#FF0000', abbr: '▶',  placeholder: 'https://youtube.com/@yourchannel' },
+  { key: 'tiktok',    label: 'TikTok',    color: '#000000', abbr: '♪',  placeholder: 'https://tiktok.com/@yourhandle' },
+  { key: 'zillow',    label: 'Zillow',    color: '#006AFF', abbr: 'Z',  placeholder: 'https://zillow.com/profile/yourname' },
+];
+
 function SignatureGenerator() {
   const [formData, setFormData] = useState({
     name: '', title: '', company: '', phone: '', email: '',
     website: '', websiteDisplay: '', iabsUrl: '', licenseNumber: '',
-    photoUrl: '', logoUrl: ''
+    photoUrl: '', logoUrl: '',
+    linkedin: '', facebook: '', instagram: '', x: '', youtube: '', tiktok: '', zillow: ''
   });
   const [style, setStyle] = useState({
     font: 'Arial, sans-serif',
@@ -149,6 +167,8 @@ function SignatureGenerator() {
   const photoRadius = s.photoShape === 'circle' ? '50%' : s.photoShape === 'rounded' ? '8px' : '0';
   const gap = s.sectionGap + 'px';
 
+  const activeSocials = SOCIALS.filter(sc => d[sc.key]);
+
   const bgStyles = {
     light: { background: '#f8fafc' },
     dark: { background: '#1e293b' },
@@ -196,6 +216,23 @@ function SignatureGenerator() {
         </div>
       )}
     </div>
+  );
+
+  /* Social icon for the signature output — uses a colored rounded square with white text */
+  const SocialIcon = ({ social }) => (
+    <a href={d[social.key]} target="_blank" rel="noopener noreferrer"
+      style={{ textDecoration: 'none', marginRight: '6px', display: 'inline-block' }}>
+      <table cellPadding="0" cellSpacing="0" style={{ borderCollapse: 'collapse', display: 'inline-table' }}><tbody><tr>
+        <td style={{
+          width: '26px', height: '26px', borderRadius: '4px',
+          backgroundColor: social.color, textAlign: 'center', verticalAlign: 'middle',
+          fontFamily: 'Arial, sans-serif', fontSize: social.abbr.length > 1 ? '10px' : '13px',
+          fontWeight: 700, color: '#ffffff', lineHeight: '26px',
+        }}>
+          {social.abbr}
+        </td>
+      </tr></tbody></table>
+    </a>
   );
 
   return (
@@ -263,7 +300,27 @@ function SignatureGenerator() {
             </div>
 
             <div className="card">
-              <h2 className="st"><span className="sb">3</span>Photos & Disclosures</h2>
+              <h2 className="st"><span className="sb">3</span>Social Profiles <span style={{color:'#94a3b8', fontWeight:400, fontSize:'13px'}}>(all optional)</span></h2>
+              <p className="fh" style={{ marginBottom: '14px', marginTop: '-8px' }}>Add any profiles you'd like — only filled fields appear in your signature.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {SOCIALS.map(sc => (
+                  <div key={sc.key} className="social-input-row">
+                    <div style={{
+                      width: '28px', height: '28px', borderRadius: '6px', backgroundColor: sc.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      fontFamily: 'Arial, sans-serif', fontSize: sc.abbr.length > 1 ? '9px' : '12px',
+                      fontWeight: 700, color: '#fff', lineHeight: 1,
+                    }}>{sc.abbr}</div>
+                    <input className="fi" name={sc.key} value={d[sc.key]} onChange={h}
+                      placeholder={sc.placeholder}
+                      style={{ flex: 1 }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card">
+              <h2 className="st"><span className="sb">4</span>Photos & Disclosures</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
                   <label className="fl">Headshot / Photo</label>
@@ -285,7 +342,7 @@ function SignatureGenerator() {
             </div>
 
             <div className="card">
-              <h2 className="st"><span className="sb">4</span>Style & Layout</h2>
+              <h2 className="st"><span className="sb">5</span>Style & Layout</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 <div>
                   <label className="fl">Font</label>
@@ -350,9 +407,9 @@ function SignatureGenerator() {
               <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '12px', color: '#64748b', marginRight: '4px', lineHeight: '28px' }}>Preview on:</span>
                 {[
-                  { key: 'light', label: 'Light', bg: '#f8fafc', border: '#e2e8f0' },
-                  { key: 'dark', label: 'Dark', bg: '#1e293b', border: '#334155' },
-                  { key: 'transparent', label: 'Transparent', bg: null, border: '#cbd5e1' },
+                  { key: 'light', label: 'Light', border: '#e2e8f0' },
+                  { key: 'dark', label: 'Dark', border: '#334155' },
+                  { key: 'transparent', label: 'Transparent', border: '#cbd5e1' },
                 ].map(opt => (
                   <button key={opt.key} onClick={() => setPreviewBg(opt.key)}
                     style={{
@@ -395,6 +452,11 @@ function SignatureGenerator() {
                           {d.email && <div style={{ marginBottom: gap }}><a href={`mailto:${d.email}`} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.email}</a></div>}
                           {d.website && <div style={{ marginBottom: gap }}><a href={d.website} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.websiteDisplay || d.website.replace(/^https?:\/\//, '')}</a></div>}
                         </div>
+                        {activeSocials.length > 0 && (
+                          <div style={{ marginTop: gap, paddingTop: gap, borderTop: '1px solid #ddd' }}>
+                            {activeSocials.map(sc => <SocialIcon key={sc.key} social={sc} />)}
+                          </div>
+                        )}
                         {d.iabsUrl && <div style={{ marginTop: gap, paddingTop: gap, borderTop: '1px solid #ddd' }}>
                           <a href={d.iabsUrl} style={{ color: '#666', textDecoration: 'underline', fontSize: '12px' }}>Information About Brokerage Services</a>
                         </div>}
