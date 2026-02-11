@@ -34,7 +34,33 @@
     cursor: pointer; transition: all 0.2s; background: #f8fafc;
   }
   .dropzone:hover, .dropzone.dragover { border-color: #f59e0b; background: #fffbeb; }
-  .dropzone img { max-width: 80px; max-height: 80px; border-radius: 4px; object-fit: cover; }
+  .dropzone-sm { padding: 14px; }
+  .checkerboard {
+    background-image:
+      linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-color: #fff;
+  }
+  .slider {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+    border-radius: 3px; background: #e2e8f0; outline: none;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+    border-radius: 50%; background: #f59e0b; cursor: pointer; border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .shape-btn {
+    padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    border: 1px solid #cbd5e1; background: white; color: #475569; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .shape-btn.active { background: #f59e0b; color: white; border-color: #f59e0b; }
+  select.fi { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -42,35 +68,56 @@
 <script type="text/babel">
 const { useState, useRef, useCallback } = React;
 
+const FONTS = [
+  { label: 'Arial', value: 'Arial, sans-serif' },
+  { label: 'Verdana', value: 'Verdana, sans-serif' },
+  { label: 'Tahoma', value: 'Tahoma, sans-serif' },
+  { label: 'Trebuchet MS', value: "'Trebuchet MS', sans-serif" },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Times New Roman', value: "'Times New Roman', serif" },
+  { label: 'Courier New', value: "'Courier New', monospace" },
+  { label: 'Palatino', value: "'Palatino Linotype', 'Book Antiqua', Palatino, serif" },
+];
+
 function SignatureGenerator() {
   const [formData, setFormData] = useState({
     name: '', title: '', company: '', phone: '', email: '',
-    website: '', websiteDisplay: '', iabsUrl: '', licenseNumber: '', photoUrl: ''
+    website: '', websiteDisplay: '', iabsUrl: '', licenseNumber: '',
+    photoUrl: '', logoUrl: ''
+  });
+  const [style, setStyle] = useState({
+    font: 'Arial, sans-serif',
+    lineSpacing: 1.5,
+    sectionGap: 8,
+    photoShape: 'rounded'
   });
   const [copied, setCopied] = useState(false);
   const [dragover, setDragover] = useState(false);
+  const [logoDragover, setLogoDragover] = useState(false);
+  const [previewBg, setPreviewBg] = useState('light');
   const sigRef = useRef(null);
   const fileRef = useRef(null);
+  const logoRef = useRef(null);
 
   const h = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(p => ({ ...p, [name]: value }));
   }, []);
 
-  const handleFile = (file) => {
+  const handleFile = (file, field) => {
     if (!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
-    reader.onload = (e) => setFormData(p => ({ ...p, photoUrl: e.target.result }));
+    reader.onload = (e) => setFormData(p => ({ ...p, [field]: e.target.result }));
     reader.readAsDataURL(file);
   };
 
-  const onDrop = (e) => {
+  const onDrop = (e, field, setDrag) => {
     e.preventDefault();
-    setDragover(false);
-    handleFile(e.dataTransfer.files[0]);
+    setDrag(false);
+    handleFile(e.dataTransfer.files[0], field);
   };
 
-  const removePhoto = () => setFormData(p => ({ ...p, photoUrl: '' }));
+  const removeImage = (field) => setFormData(p => ({ ...p, [field]: '' }));
 
   const copy = async () => {
     const el = sigRef.current;
@@ -97,12 +144,65 @@ function SignatureGenerator() {
 
   const has = formData.name || formData.title || formData.company || formData.phone || formData.email;
   const d = formData;
+  const s = style;
+
+  const photoRadius = s.photoShape === 'circle' ? '50%' : s.photoShape === 'rounded' ? '8px' : '0';
+  const gap = s.sectionGap + 'px';
+
+  const bgStyles = {
+    light: { background: '#f8fafc' },
+    dark: { background: '#1e293b' },
+    transparent: {},
+  };
+
+  const UploadZone = ({ field, dragState, setDrag, inputRef, label, small }) => (
+    <div>
+      {d[field] ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src={d[field]} alt="Preview"
+            style={{ width: small ? '48px' : '64px', height: small ? '48px' : '64px',
+              borderRadius: field === 'photoUrl' ? photoRadius : '6px',
+              objectFit: 'cover', border: '1px solid #e2e8f0' }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: '13px', color: '#334155', marginBottom: '6px' }}>{label} added</p>
+            <button onClick={() => removeImage(field)} style={{
+              padding: '4px 12px', fontSize: '12px', border: '1px solid #fca5a5', background: '#fef2f2',
+              color: '#dc2626', borderRadius: '6px', cursor: 'pointer'
+            }}>Remove</button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div
+            className={`dropzone${small ? ' dropzone-sm' : ''}${dragState ? ' dragover' : ''}`}
+            onClick={() => inputRef.current.click()}
+            onDrop={(e) => onDrop(e, field, setDrag)}
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+          >
+            <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={(e) => handleFile(e.target.files[0], field)} />
+            <svg width={small ? '24' : '32'} height={small ? '24' : '32'} fill="none" stroke="#94a3b8" viewBox="0 0 24 24" strokeWidth="1.5" style={{ margin: '0 auto 8px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-3 3m3-3l3 3M4 16l.586.586a2 2 0 001.414.586h12a2 2 0 001.414-.586L20 16" />
+            </svg>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+              <strong>Click to upload</strong> or drag & drop
+            </p>
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>JPG, PNG, or WebP</p>
+          </div>
+          <p className="fh" style={{ marginTop: '8px' }}>Or paste a URL:</p>
+          <input className="fi" type="url" name={field} value={d[field]} onChange={h}
+            placeholder="https://example.com/image.jpg" style={{ marginTop: '4px' }} />
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       {/* Header */}
       <div style={{ background: 'linear-gradient(to right, #1e293b, #334155)', color: 'white', padding: '32px 24px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '960px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <svg width="32" height="32" fill="none" stroke="#fbbf24" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
             <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0 }}>Email Signature Generator</h1>
@@ -111,7 +211,7 @@ function SignatureGenerator() {
         </div>
       </div>
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px' }}>
+      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '32px' }}>
 
           {/* Form */}
@@ -163,50 +263,67 @@ function SignatureGenerator() {
             </div>
 
             <div className="card">
-              <h2 className="st"><span className="sb">3</span>Photo & Disclosures</h2>
+              <h2 className="st"><span className="sb">3</span>Photos & Disclosures</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
                   <label className="fl">Headshot / Photo</label>
-                  {d.photoUrl ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <img src={d.photoUrl} alt="Preview" style={{ width: '64px', height: '64px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e2e8f0' }} />
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '13px', color: '#334155', marginBottom: '6px' }}>Photo added</p>
-                        <button onClick={removePhoto} style={{
-                          padding: '4px 12px', fontSize: '12px', border: '1px solid #fca5a5', background: '#fef2f2',
-                          color: '#dc2626', borderRadius: '6px', cursor: 'pointer'
-                        }}>Remove</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div
-                        className={`dropzone${dragover ? ' dragover' : ''}`}
-                        onClick={() => fileRef.current.click()}
-                        onDrop={onDrop}
-                        onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
-                        onDragLeave={() => setDragover(false)}
-                      >
-                        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                          onChange={(e) => handleFile(e.target.files[0])} />
-                        <svg width="32" height="32" fill="none" stroke="#94a3b8" viewBox="0 0 24 24" strokeWidth="1.5" style={{ margin: '0 auto 8px' }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-3 3m3-3l3 3M4 16l.586.586a2 2 0 001.414.586h12a2 2 0 001.414-.586L20 16" />
-                        </svg>
-                        <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                          <strong>Click to upload</strong> or drag & drop
-                        </p>
-                        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>JPG, PNG, or WebP</p>
-                      </div>
-                      <p className="fh" style={{ marginTop: '8px' }}>Or paste a URL below:</p>
-                      <input className="fi" type="url" name="photoUrl" value={d.photoUrl} onChange={h}
-                        placeholder="https://example.com/your-photo.jpg" style={{ marginTop: '4px' }} />
-                    </div>
-                  )}
+                  <UploadZone field="photoUrl" dragState={dragover} setDrag={setDragover}
+                    inputRef={fileRef} label="Photo" />
+                </div>
+                <div>
+                  <label className="fl">Company / Brokerage Logo <span style={{color:'#94a3b8', fontWeight:400}}>(optional)</span></label>
+                  <UploadZone field="logoUrl" dragState={logoDragover} setDrag={setLogoDragover}
+                    inputRef={logoRef} label="Logo" small />
+                  <p className="fh">Displays below your headshot in the signature.</p>
                 </div>
                 <div>
                   <label className="fl">IABS Link <span style={{color:'#ef4444'}}>*</span></label>
                   <input className="fi" type="url" name="iabsUrl" value={d.iabsUrl} onChange={h} placeholder="https://www.trec.texas.gov/forms/information-about-brokerage-services" />
                   <p className="fh">Texas law requires this link. Get yours from your broker or use TREC's default form.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <h2 className="st"><span className="sb">4</span>Style & Layout</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <div>
+                  <label className="fl">Font</label>
+                  <select className="fi" value={s.font}
+                    onChange={(e) => setStyle(p => ({ ...p, font: e.target.value }))}>
+                    {FONTS.map(f => (
+                      <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="fl">Photo Shape</label>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    {['square', 'rounded', 'circle'].map(shape => (
+                      <button key={shape} className={`shape-btn${s.photoShape === shape ? ' active' : ''}`}
+                        onClick={() => setStyle(p => ({ ...p, photoShape: shape }))}>
+                        {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="fl">Line Spacing: {s.lineSpacing.toFixed(1)}</label>
+                  <input type="range" className="slider" min="1.0" max="2.2" step="0.1"
+                    value={s.lineSpacing}
+                    onChange={(e) => setStyle(p => ({ ...p, lineSpacing: parseFloat(e.target.value) }))} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                    <span>Tight</span><span>Spacious</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="fl">Section Gap: {s.sectionGap}px</label>
+                  <input type="range" className="slider" min="0" max="20" step="1"
+                    value={s.sectionGap}
+                    onChange={(e) => setStyle(p => ({ ...p, sectionGap: parseInt(e.target.value) }))} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                    <span>Compact</span><span>Airy</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -229,24 +346,56 @@ function SignatureGenerator() {
                 </button>
               </div>
 
-              <div style={{ border: '2px dashed #e2e8f0', borderRadius: '8px', padding: '24px', background: '#f8fafc', minHeight: '180px' }}>
+              {/* Background toggle */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', color: '#64748b', marginRight: '4px', lineHeight: '28px' }}>Preview on:</span>
+                {[
+                  { key: 'light', label: 'Light', bg: '#f8fafc', border: '#e2e8f0' },
+                  { key: 'dark', label: 'Dark', bg: '#1e293b', border: '#334155' },
+                  { key: 'transparent', label: 'Transparent', bg: null, border: '#cbd5e1' },
+                ].map(opt => (
+                  <button key={opt.key} onClick={() => setPreviewBg(opt.key)}
+                    style={{
+                      padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                      border: `1px solid ${previewBg === opt.key ? '#f59e0b' : opt.border}`,
+                      background: previewBg === opt.key ? '#fef3c7' : 'white',
+                      color: previewBg === opt.key ? '#b45309' : '#64748b',
+                      cursor: 'pointer'
+                    }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className={previewBg === 'transparent' ? 'checkerboard' : ''}
+                style={{
+                  border: '2px dashed #e2e8f0', borderRadius: '8px', padding: '24px', minHeight: '180px',
+                  ...(previewBg !== 'transparent' ? bgStyles[previewBg] : {})
+                }}>
                 {has ? (
-                  <div ref={sigRef} className="sig-preview" key={d.name + d.title + d.company} style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: 1.5, color: '#333' }}>
-                    <table cellPadding="0" cellSpacing="0" style={{ borderCollapse: 'collapse' }}><tbody><tr>
-                      {d.photoUrl && <td style={{ paddingRight: '15px', verticalAlign: 'top' }}>
-                        <img src={d.photoUrl} alt={d.name} style={{ width: '80px', height: '80px', borderRadius: '4px', objectFit: 'cover' }} onError={e => e.target.style.display='none'} />
+                  <div ref={sigRef} className="sig-preview" key={d.name + d.title + d.company + s.font}
+                    style={{ fontFamily: s.font, fontSize: '14px', lineHeight: s.lineSpacing, color: '#333' }}>
+                    <table cellPadding="0" cellSpacing="0" style={{ borderCollapse: 'collapse', background: 'transparent' }}><tbody><tr>
+                      {(d.photoUrl || d.logoUrl) && <td style={{ paddingRight: '15px', verticalAlign: 'top' }}>
+                        {d.photoUrl && <img src={d.photoUrl} alt={d.name}
+                          style={{ width: '80px', height: '80px', borderRadius: photoRadius, objectFit: 'cover', display: 'block' }}
+                          onError={e => e.target.style.display='none'} />}
+                        {d.logoUrl && <img src={d.logoUrl} alt="Logo"
+                          style={{ width: '80px', maxHeight: '40px', objectFit: 'contain', display: 'block',
+                            marginTop: d.photoUrl ? '6px' : '0' }}
+                          onError={e => e.target.style.display='none'} />}
                       </td>}
                       <td style={{ verticalAlign: 'top' }}>
-                        {d.name && <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#1a1a1a', marginBottom: '2px' }}>{d.name}</div>}
-                        {d.title && <div style={{ color: '#555', marginBottom: '2px' }}>{d.title}</div>}
-                        {d.company && <div style={{ color: '#555', marginBottom: '2px' }}>{d.company}</div>}
-                        {d.licenseNumber && <div style={{ color: '#777', fontSize: '12px', marginBottom: '8px' }}>{d.licenseNumber}</div>}
-                        <div style={{ borderTop: '1px solid #ddd', paddingTop: '8px', marginTop: '4px' }}>
-                          {d.phone && <div style={{ marginBottom: '2px' }}><a href={`tel:${d.phone.replace(/\D/g,'')}`} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.phone}</a></div>}
-                          {d.email && <div style={{ marginBottom: '2px' }}><a href={`mailto:${d.email}`} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.email}</a></div>}
-                          {d.website && <div style={{ marginBottom: '2px' }}><a href={d.website} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.websiteDisplay || d.website.replace(/^https?:\/\//, '')}</a></div>}
+                        {d.name && <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#1a1a1a', marginBottom: gap }}>{d.name}</div>}
+                        {d.title && <div style={{ color: '#555', marginBottom: gap }}>{d.title}</div>}
+                        {d.company && <div style={{ color: '#555', marginBottom: gap }}>{d.company}</div>}
+                        {d.licenseNumber && <div style={{ color: '#777', fontSize: '12px', marginBottom: gap }}>{d.licenseNumber}</div>}
+                        <div style={{ borderTop: '1px solid #ddd', paddingTop: gap, marginTop: gap }}>
+                          {d.phone && <div style={{ marginBottom: gap }}><a href={`tel:${d.phone.replace(/\D/g,'')}`} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.phone}</a></div>}
+                          {d.email && <div style={{ marginBottom: gap }}><a href={`mailto:${d.email}`} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.email}</a></div>}
+                          {d.website && <div style={{ marginBottom: gap }}><a href={d.website} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.websiteDisplay || d.website.replace(/^https?:\/\//, '')}</a></div>}
                         </div>
-                        {d.iabsUrl && <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #ddd' }}>
+                        {d.iabsUrl && <div style={{ marginTop: gap, paddingTop: gap, borderTop: '1px solid #ddd' }}>
                           <a href={d.iabsUrl} style={{ color: '#666', textDecoration: 'underline', fontSize: '12px' }}>Information About Brokerage Services</a>
                         </div>}
                       </td>
