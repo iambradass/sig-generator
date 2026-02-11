@@ -7,16 +7,29 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
 <style>
-  body { margin: 0; background: #f8fafc; }
-  input:focus { outline: none; box-shadow: 0 0 0 2px #f59e0b; border-color: #f59e0b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f8fafc; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .fi {
+    width: 100%; padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 8px;
+    font-size: 14px; transition: all 0.2s; font-family: inherit;
+  }
+  .fi:focus { outline: none; box-shadow: 0 0 0 2px #f59e0b; border-color: #f59e0b; }
+  .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; }
+  .sb {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; background: #fef3c7; color: #b45309;
+    border-radius: 50%; font-size: 13px; font-weight: 700; margin-right: 8px;
+  }
+  .st { font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 0 16px 0; }
+  .fl { display: block; font-size: 14px; font-weight: 500; color: #334155; margin-bottom: 4px; }
+  .fh { font-size: 12px; color: #94a3b8; margin-top: 4px; }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useRef } = React;
+const { useState, useRef, useCallback } = React;
 
 function SignatureGenerator() {
   const [formData, setFormData] = useState({
@@ -26,7 +39,10 @@ function SignatureGenerator() {
   const [copied, setCopied] = useState(false);
   const sigRef = useRef(null);
 
-  const set = (k, v) => setFormData(p => ({ ...p, [k]: v }));
+  const h = useCallback((e) => {
+    const { name, value } = e.target;
+    setFormData(p => ({ ...p, [name]: value }));
+  }, []);
 
   const copy = async () => {
     const el = sigRef.current;
@@ -54,21 +70,8 @@ function SignatureGenerator() {
   const has = formData.name || formData.title || formData.company || formData.phone || formData.email;
   const d = formData;
 
-  const Field = ({ label, field, type = 'text', placeholder, hint, required }) => (
-    <div>
-      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#334155', marginBottom: '4px' }}>
-        {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
-      </label>
-      <input type={type} value={d[field]} onChange={e => set(field, e.target.value)}
-        placeholder={placeholder}
-        style={{ width: '100%', padding: '10px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s' }}
-      />
-      {hint && <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{hint}</p>}
-    </div>
-  );
-
   return (
-    <div style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       {/* Header */}
       <div style={{ background: 'linear-gradient(to right, #1e293b, #334155)', color: 'white', padding: '32px 24px' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -85,52 +88,78 @@ function SignatureGenerator() {
 
           {/* Form */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: '0 0 16px 0' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#fef3c7', color: '#b45309', borderRadius: '50%', fontSize: '13px', fontWeight: 700, marginRight: '8px' }}>1</span>
-                Your Information
-              </h2>
+
+            <div className="card">
+              <h2 className="st"><span className="sb">1</span>Your Information</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <Field label="Full Name" field="name" placeholder="Jane Smith" required />
-                <Field label="Title" field="title" placeholder="REALTOR® | Buyer Specialist" />
-                <Field label="Company / Brokerage" field="company" placeholder="ABC Realty Group" />
-                <Field label="License Number" field="licenseNumber" placeholder="TX #123456" />
+                <div>
+                  <label className="fl">Full Name <span style={{color:'#ef4444'}}>*</span></label>
+                  <input className="fi" name="name" value={d.name} onChange={h} placeholder="Jane Smith" />
+                </div>
+                <div>
+                  <label className="fl">Title</label>
+                  <input className="fi" name="title" value={d.title} onChange={h} placeholder="REALTOR® | Buyer Specialist" />
+                </div>
+                <div>
+                  <label className="fl">Company / Brokerage</label>
+                  <input className="fi" name="company" value={d.company} onChange={h} placeholder="ABC Realty Group" />
+                </div>
+                <div>
+                  <label className="fl">License Number</label>
+                  <input className="fi" name="licenseNumber" value={d.licenseNumber} onChange={h} placeholder="TX #123456" />
+                </div>
               </div>
             </div>
 
-            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: '0 0 16px 0' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#fef3c7', color: '#b45309', borderRadius: '50%', fontSize: '13px', fontWeight: 700, marginRight: '8px' }}>2</span>
-                Contact Details
-              </h2>
+            <div className="card">
+              <h2 className="st"><span className="sb">2</span>Contact Details</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <Field label="Phone Number" field="phone" type="tel" placeholder="(817) 555-1234" />
-                <Field label="Email Address" field="email" type="email" placeholder="jane@abcrealty.com" />
-                <Field label="Website URL" field="website" type="url" placeholder="https://www.janesmith.com" />
-                <Field label="Website Display Text" field="websiteDisplay" placeholder="www.janesmith.com" hint="What text should appear for your website link?" />
+                <div>
+                  <label className="fl">Phone Number</label>
+                  <input className="fi" type="tel" name="phone" value={d.phone} onChange={h} placeholder="(817) 555-1234" />
+                </div>
+                <div>
+                  <label className="fl">Email Address</label>
+                  <input className="fi" type="email" name="email" value={d.email} onChange={h} placeholder="jane@abcrealty.com" />
+                </div>
+                <div>
+                  <label className="fl">Website URL</label>
+                  <input className="fi" type="url" name="website" value={d.website} onChange={h} placeholder="https://www.janesmith.com" />
+                </div>
+                <div>
+                  <label className="fl">Website Display Text <span style={{color:'#94a3b8', fontWeight:400}}>(optional)</span></label>
+                  <input className="fi" name="websiteDisplay" value={d.websiteDisplay} onChange={h} placeholder="www.janesmith.com" />
+                  <p className="fh">What text should appear for your website link?</p>
+                </div>
               </div>
             </div>
 
-            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: '0 0 16px 0' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#fef3c7', color: '#b45309', borderRadius: '50%', fontSize: '13px', fontWeight: 700, marginRight: '8px' }}>3</span>
-                Required Disclosures
-              </h2>
+            <div className="card">
+              <h2 className="st"><span className="sb">3</span>Required Disclosures</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <Field label="IABS Link" field="iabsUrl" type="url" placeholder="https://www.trec.texas.gov/forms/information-about-brokerage-services" hint="Texas law requires this link. Get yours from your broker or use TREC's default form." required />
-                <Field label="Photo URL" field="photoUrl" type="url" placeholder="https://example.com/your-photo.jpg" hint="Direct link to a headshot image (must end in .jpg, .png, etc.)" />
+                <div>
+                  <label className="fl">IABS Link <span style={{color:'#ef4444'}}>*</span></label>
+                  <input className="fi" type="url" name="iabsUrl" value={d.iabsUrl} onChange={h} placeholder="https://www.trec.texas.gov/forms/information-about-brokerage-services" />
+                  <p className="fh">Texas law requires this link. Get yours from your broker or use TREC's default form.</p>
+                </div>
+                <div>
+                  <label className="fl">Photo URL <span style={{color:'#94a3b8', fontWeight:400}}>(optional)</span></label>
+                  <input className="fi" type="url" name="photoUrl" value={d.photoUrl} onChange={h} placeholder="https://example.com/your-photo.jpg" />
+                  <p className="fh">Direct link to a headshot image (must end in .jpg, .png, etc.)</p>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Preview */}
           <div>
-            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px', position: 'sticky', top: '24px' }}>
+            <div className="card" style={{ position: 'sticky', top: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Live Preview</h2>
                 <button onClick={copy} disabled={!has}
                   style={{
-                    padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: 'none', cursor: has ? 'pointer' : 'not-allowed',
+                    padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: 'none',
+                    cursor: has ? 'pointer' : 'not-allowed',
                     background: copied ? '#22c55e' : has ? '#f59e0b' : '#e2e8f0',
                     color: copied || has ? 'white' : '#94a3b8',
                     transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
