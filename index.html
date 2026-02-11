@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://js.stripe.com/v3/"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #f8fafc; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
@@ -77,6 +78,31 @@
   .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   .bg-toggle { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
 
+  /* Stripe checkout modal overlay */
+  .checkout-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .checkout-modal {
+    background: white; border-radius: 16px; width: 100%; max-width: 500px;
+    max-height: 90vh; overflow-y: auto; position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  }
+  .checkout-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid #e2e8f0;
+  }
+  .checkout-modal-body { padding: 24px; min-height: 300px; }
+  .checkout-close {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: #f1f5f9; color: #64748b; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .checkout-close:hover { background: #e2e8f0; color: #334155; }
+
   @media (max-width: 820px) {
     .main-grid { grid-template-columns: 1fr; gap: 20px; }
     .preview-wrap { position: static; }
@@ -96,13 +122,18 @@
     .copy-btn-mobile { width: 100%; justify-content: center; }
     .social-input-row { gap: 6px; }
     .sig-table img { max-width: 60px; }
+    .checkout-modal { max-width: 100%; border-radius: 12px; }
+    .checkout-modal-header { padding: 16px; }
+    .checkout-modal-body { padding: 16px; }
   }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useRef, useCallback } = React;
+const { useState, useRef, useCallback, useEffect } = React;
+
+const STRIPE_PK = 'pk_test_YOUR_PUBLISHABLE_KEY_HERE';
 
 const FONTS = [
   { label: 'Arial', value: 'Arial, sans-serif' },
@@ -120,8 +151,8 @@ const SOCIALS = [
   { key: 'facebook',  label: 'Facebook',  color: '#1877F2', abbr: 'f',  placeholder: 'https://facebook.com/yourpage' },
   { key: 'instagram', label: 'Instagram', color: '#E4405F', abbr: 'ig', placeholder: 'https://instagram.com/yourhandle' },
   { key: 'x',         label: 'X (Twitter)', color: '#000000', abbr: 'X', placeholder: 'https://x.com/yourhandle' },
-  { key: 'youtube',   label: 'YouTube',   color: '#FF0000', abbr: '▶',  placeholder: 'https://youtube.com/@yourchannel' },
-  { key: 'tiktok',    label: 'TikTok',    color: '#000000', abbr: '♪',  placeholder: 'https://tiktok.com/@yourhandle' },
+  { key: 'youtube',   label: 'YouTube',   color: '#FF0000', abbr: '\u25B6',  placeholder: 'https://youtube.com/@yourchannel' },
+  { key: 'tiktok',    label: 'TikTok',    color: '#000000', abbr: '\u266A',  placeholder: 'https://tiktok.com/@yourhandle' },
   { key: 'zillow',    label: 'Zillow',    color: '#006AFF', abbr: 'Z',  placeholder: 'https://zillow.com/profile/yourname' },
 ];
 
@@ -142,9 +173,61 @@ function SignatureGenerator() {
   const [dragover, setDragover] = useState(false);
   const [logoDragover, setLogoDragover] = useState(false);
   const [previewBg, setPreviewBg] = useState('light');
+
+  // Stripe payment state
+  const [paid, setPaid] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+
   const sigRef = useRef(null);
   const fileRef = useRef(null);
   const logoRef = useRef(null);
+  const checkoutRef = useRef(null);
+  const stripeCheckoutRef = useRef(null);
+
+  // On mount: check for payment return or existing session
+  useEffect(() => {
+    // Already paid this session?
+    if (sessionStorage.getItem('sig_paid') === 'true') {
+      setPaid(true);
+      restoreFormData();
+      return;
+    }
+
+    // Returning from Stripe redirect?
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    if (sessionId) {
+      // Clean the URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Verify the payment
+      fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.payment_status === 'paid') {
+            setPaid(true);
+            sessionStorage.setItem('sig_paid', 'true');
+            restoreFormData();
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  const restoreFormData = () => {
+    try {
+      const saved = localStorage.getItem('sig_formData');
+      const savedStyle = localStorage.getItem('sig_style');
+      if (saved) setFormData(JSON.parse(saved));
+      if (savedStyle) setStyle(JSON.parse(savedStyle));
+    } catch {}
+  };
+
+  const saveFormData = () => {
+    localStorage.setItem('sig_formData', JSON.stringify(formData));
+    localStorage.setItem('sig_style', JSON.stringify(style));
+  };
 
   const h = useCallback((e) => {
     const { name, value } = e.target;
@@ -187,6 +270,47 @@ function SignatureGenerator() {
     } catch { document.execCommand('copy'); }
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  // Stripe checkout handler
+  const handleDownload = async () => {
+    setCheckoutError('');
+    setCheckoutLoading(true);
+    saveFormData();
+
+    try {
+      const res = await fetch('/api/create-checkout-session', { method: 'POST' });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      setShowCheckoutModal(true);
+      setCheckoutLoading(false);
+
+      // Mount Stripe embedded checkout
+      const stripe = Stripe(STRIPE_PK);
+      const checkout = await stripe.initEmbeddedCheckout({
+        clientSecret: data.clientSecret,
+      });
+
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        if (checkoutRef.current) {
+          checkout.mount(checkoutRef.current);
+          stripeCheckoutRef.current = checkout;
+        }
+      }, 50);
+    } catch (err) {
+      setCheckoutLoading(false);
+      setCheckoutError(err.message || 'Something went wrong. Please try again.');
+    }
+  };
+
+  const closeCheckoutModal = () => {
+    if (stripeCheckoutRef.current) {
+      stripeCheckoutRef.current.destroy();
+      stripeCheckoutRef.current = null;
+    }
+    setShowCheckoutModal(false);
   };
 
   const has = formData.name || formData.title || formData.company || formData.phone || formData.email;
@@ -247,7 +371,7 @@ function SignatureGenerator() {
     </div>
   );
 
-  /* Social icon for the signature output — uses a colored rounded square with white text */
+  /* Social icon for the signature output */
   const SocialIcon = ({ social }) => (
     <a href={d[social.key]} target="_blank" rel="noopener noreferrer"
       style={{ textDecoration: 'none', marginRight: '6px', display: 'inline-block' }}>
@@ -420,17 +544,36 @@ function SignatureGenerator() {
             <div className="card preview-wrap">
               <div className="preview-header">
                 <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Live Preview</h2>
-                <button onClick={copy} disabled={!has} className="copy-btn-mobile"
-                  style={{
-                    padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: 'none',
-                    cursor: has ? 'pointer' : 'not-allowed',
-                    background: copied ? '#22c55e' : has ? '#f59e0b' : '#e2e8f0',
-                    color: copied || has ? 'white' : '#94a3b8',
-                    transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
-                  }}>
-                  {copied ? '✓ Copied!' : '📋 Copy Signature'}
-                </button>
+                {paid ? (
+                  <button onClick={copy} disabled={!has} className="copy-btn-mobile"
+                    style={{
+                      padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: 'none',
+                      cursor: has ? 'pointer' : 'not-allowed',
+                      background: copied ? '#22c55e' : has ? '#f59e0b' : '#e2e8f0',
+                      color: copied || has ? 'white' : '#94a3b8',
+                      transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
+                    }}>
+                    {copied ? '\u2713 Copied!' : '\uD83D\uDCCB Copy Signature'}
+                  </button>
+                ) : (
+                  <button onClick={handleDownload} disabled={!has || checkoutLoading} className="copy-btn-mobile"
+                    style={{
+                      padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: 'none',
+                      cursor: has && !checkoutLoading ? 'pointer' : 'not-allowed',
+                      background: has && !checkoutLoading ? '#2563eb' : '#e2e8f0',
+                      color: has && !checkoutLoading ? 'white' : '#94a3b8',
+                      transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
+                    }}>
+                    {checkoutLoading ? 'Loading...' : '\u2B07 Download — $5.99'}
+                  </button>
+                )}
               </div>
+
+              {checkoutError && (
+                <div style={{ marginBottom: '12px', padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', fontSize: '13px', color: '#dc2626' }}>
+                  {checkoutError}
+                </div>
+              )}
 
               {/* Background toggle */}
               <div className="bg-toggle">
@@ -501,14 +644,14 @@ function SignatureGenerator() {
               </div>
 
               <div style={{ marginTop: '20px', padding: '16px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
-                <h3 style={{ fontWeight: 600, color: '#1e3a5f', fontSize: '14px', margin: '0 0 8px 0' }}>📋 How to Use</h3>
+                <h3 style={{ fontWeight: 600, color: '#1e3a5f', fontSize: '14px', margin: '0 0 8px 0' }}>How to Use</h3>
                 <div style={{ fontSize: '14px', color: '#1e40af', lineHeight: 1.8 }}>
-                  <b>1.</b> Fill in your information &nbsp;→&nbsp; <b>2.</b> Click "Copy Signature" &nbsp;→&nbsp; <b>3.</b> Open your email settings → Signature &nbsp;→&nbsp; <b>4.</b> Paste (Ctrl+V / Cmd+V)
+                  <b>1.</b> Fill in your information &nbsp;&rarr;&nbsp; <b>2.</b> Click "Download" &amp; complete payment &nbsp;&rarr;&nbsp; <b>3.</b> Click "Copy Signature" &nbsp;&rarr;&nbsp; <b>4.</b> Open your email settings &rarr; Signature &nbsp;&rarr;&nbsp; <b>5.</b> Paste (Ctrl+V / Cmd+V)
                 </div>
               </div>
 
               <div style={{ marginTop: '12px', padding: '16px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fef3c7' }}>
-                <h3 style={{ fontWeight: 600, color: '#78350f', fontSize: '14px', margin: '0 0 4px 0' }}>⚠️ Important</h3>
+                <h3 style={{ fontWeight: 600, color: '#78350f', fontSize: '14px', margin: '0 0 4px 0' }}>Important</h3>
                 <p style={{ fontSize: '14px', color: '#92400e', margin: 0 }}>
                   For best results, paste your signature using a <strong>desktop/laptop</strong> email app or webmail. Mobile apps have limited formatting support.
                 </p>
@@ -518,9 +661,22 @@ function SignatureGenerator() {
         </div>
 
         <div style={{ marginTop: '40px', textAlign: 'center', fontSize: '14px', color: '#94a3b8', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
-          A free tool from <strong>CNAT Title</strong> • Questions? Contact your escrow officer
+          A free tool from <strong>CNAT Title</strong> &bull; Questions? Contact your escrow officer
         </div>
       </div>
+
+      {/* Stripe Checkout Modal */}
+      {showCheckoutModal && (
+        <div className="checkout-overlay" onClick={closeCheckoutModal}>
+          <div className="checkout-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="checkout-modal-header">
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1e293b' }}>Complete Payment</h3>
+              <button className="checkout-close" onClick={closeCheckoutModal}>&times;</button>
+            </div>
+            <div className="checkout-modal-body" ref={checkoutRef}></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
