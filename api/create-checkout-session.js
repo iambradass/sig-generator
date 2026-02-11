@@ -10,7 +10,13 @@ module.exports = async function handler(req, res) {
       ui_mode: 'embedded',
       line_items: [
         {
-          price: 'price_1SzkthEo8OglyE8N4VilNDcX',
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Email Signature Generator',
+            },
+            unit_amount: 599,
+          },
           quantity: 1,
         },
       ],
