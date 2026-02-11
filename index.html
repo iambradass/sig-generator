@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Signature Generator — CNAT Title</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+<style>
+  body { margin: 0; background: #f8fafc; }
+  input:focus { outline: none; box-shadow: 0 0 0 2px #f59e0b; border-color: #f59e0b; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef } = React;
+
+function SignatureGenerator() {
+  const [formData, setFormData] = useState({
+    name: '', title: '', company: '', phone: '', email: '',
+    website: '', websiteDisplay: '', iabsUrl: '', licenseNumber: '', photoUrl: ''
+  });
+  const [copied, setCopied] = useState(false);
+  const sigRef = useRef(null);
+
+  const set = (k, v) => setFormData(p => ({ ...p, [k]: v }));
+
+  const copy = async () => {
+    const el = sigRef.current;
+    if (!el) return;
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([el.innerHTML], { type: 'text/html' }),
+          'text/plain': new Blob([el.innerText], { type: 'text/plain' })
+        })]);
+      } else {
+        document.execCommand('copy');
+      }
+      sel.removeAllRanges();
+    } catch { document.execCommand('copy'); }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const has = formData.name || formData.title || formData.company || formData.phone || formData.email;
+  const d = formData;
+
+  const Field = ({ label, field, type = 'text', placeholder, hint, required }) => (
+    <div>
+      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#334155', marginBottom: '4px' }}>
+        {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
+      </label>
+      <input type={type} value={d[field]} onChange={e => set(field, e.target.value)}
+        placeholder={placeholder}
+        style={{ width: '100%', padding: '10px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s' }}
+      />
+      {hint && <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{hint}</p>}
+    </div>
+  );
+
+  return (
+    <div style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", minHeight: '100vh', background: '#f8fafc' }}>
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(to right, #1e293b, #334155)', color: 'white', padding: '32px 24px' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <svg width="32" height="32" fill="none" stroke="#fbbf24" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0 }}>Email Signature Generator</h1>
+          </div>
+          <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>Create a professional email signature with clickable links — courtesy of CNAT Title</p>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '32px' }}>
+
+          {/* Form */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: '0 0 16px 0' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#fef3c7', color: '#b45309', borderRadius: '50%', fontSize: '13px', fontWeight: 700, marginRight: '8px' }}>1</span>
+                Your Information
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <Field label="Full Name" field="name" placeholder="Jane Smith" required />
+                <Field label="Title" field="title" placeholder="REALTOR® | Buyer Specialist" />
+                <Field label="Company / Brokerage" field="company" placeholder="ABC Realty Group" />
+                <Field label="License Number" field="licenseNumber" placeholder="TX #123456" />
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: '0 0 16px 0' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#fef3c7', color: '#b45309', borderRadius: '50%', fontSize: '13px', fontWeight: 700, marginRight: '8px' }}>2</span>
+                Contact Details
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <Field label="Phone Number" field="phone" type="tel" placeholder="(817) 555-1234" />
+                <Field label="Email Address" field="email" type="email" placeholder="jane@abcrealty.com" />
+                <Field label="Website URL" field="website" type="url" placeholder="https://www.janesmith.com" />
+                <Field label="Website Display Text" field="websiteDisplay" placeholder="www.janesmith.com" hint="What text should appear for your website link?" />
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: '0 0 16px 0' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#fef3c7', color: '#b45309', borderRadius: '50%', fontSize: '13px', fontWeight: 700, marginRight: '8px' }}>3</span>
+                Required Disclosures
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <Field label="IABS Link" field="iabsUrl" type="url" placeholder="https://www.trec.texas.gov/forms/information-about-brokerage-services" hint="Texas law requires this link. Get yours from your broker or use TREC's default form." required />
+                <Field label="Photo URL" field="photoUrl" type="url" placeholder="https://example.com/your-photo.jpg" hint="Direct link to a headshot image (must end in .jpg, .png, etc.)" />
+              </div>
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div>
+            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px', position: 'sticky', top: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Live Preview</h2>
+                <button onClick={copy} disabled={!has}
+                  style={{
+                    padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: 'none', cursor: has ? 'pointer' : 'not-allowed',
+                    background: copied ? '#22c55e' : has ? '#f59e0b' : '#e2e8f0',
+                    color: copied || has ? 'white' : '#94a3b8',
+                    transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
+                  }}>
+                  {copied ? '✓ Copied!' : '📋 Copy Signature'}
+                </button>
+              </div>
+
+              <div style={{ border: '2px dashed #e2e8f0', borderRadius: '8px', padding: '24px', background: '#f8fafc', minHeight: '180px' }}>
+                {has ? (
+                  <div ref={sigRef} style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: 1.5, color: '#333' }}>
+                    <table cellPadding="0" cellSpacing="0" style={{ borderCollapse: 'collapse' }}><tbody><tr>
+                      {d.photoUrl && <td style={{ paddingRight: '15px', verticalAlign: 'top' }}>
+                        <img src={d.photoUrl} alt={d.name} style={{ width: '80px', height: '80px', borderRadius: '4px', objectFit: 'cover' }} onError={e => e.target.style.display='none'} />
+                      </td>}
+                      <td style={{ verticalAlign: 'top' }}>
+                        {d.name && <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#1a1a1a', marginBottom: '2px' }}>{d.name}</div>}
+                        {d.title && <div style={{ color: '#555', marginBottom: '2px' }}>{d.title}</div>}
+                        {d.company && <div style={{ color: '#555', marginBottom: '2px' }}>{d.company}</div>}
+                        {d.licenseNumber && <div style={{ color: '#777', fontSize: '12px', marginBottom: '8px' }}>{d.licenseNumber}</div>}
+                        <div style={{ borderTop: '1px solid #ddd', paddingTop: '8px', marginTop: '4px' }}>
+                          {d.phone && <div style={{ marginBottom: '2px' }}><a href={`tel:${d.phone.replace(/\D/g,'')}`} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.phone}</a></div>}
+                          {d.email && <div style={{ marginBottom: '2px' }}><a href={`mailto:${d.email}`} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.email}</a></div>}
+                          {d.website && <div style={{ marginBottom: '2px' }}><a href={d.website} style={{ color: '#2563eb', textDecoration: 'none' }}>{d.websiteDisplay || d.website.replace(/^https?:\/\//, '')}</a></div>}
+                        </div>
+                        {d.iabsUrl && <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #ddd' }}>
+                          <a href={d.iabsUrl} style={{ color: '#666', textDecoration: 'underline', fontSize: '12px' }}>Information About Brokerage Services</a>
+                        </div>}
+                      </td>
+                    </tr></tbody></table>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', padding: '32px 0' }}>
+                    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5" style={{ opacity: 0.5, marginBottom: '12px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    <p style={{ fontSize: '14px', margin: 0 }}>Start typing to see your signature</p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: '20px', padding: '16px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
+                <h3 style={{ fontWeight: 600, color: '#1e3a5f', fontSize: '14px', margin: '0 0 8px 0' }}>📋 How to Use</h3>
+                <div style={{ fontSize: '14px', color: '#1e40af', lineHeight: 1.8 }}>
+                  <b>1.</b> Fill in your information &nbsp;→&nbsp; <b>2.</b> Click "Copy Signature" &nbsp;→&nbsp; <b>3.</b> Open your email settings → Signature &nbsp;→&nbsp; <b>4.</b> Paste (Ctrl+V / Cmd+V)
+                </div>
+              </div>
+
+              <div style={{ marginTop: '12px', padding: '16px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fef3c7' }}>
+                <h3 style={{ fontWeight: 600, color: '#78350f', fontSize: '14px', margin: '0 0 4px 0' }}>⚠️ Important</h3>
+                <p style={{ fontSize: '14px', color: '#92400e', margin: 0 }}>
+                  For best results, paste your signature using a <strong>desktop/laptop</strong> email app or webmail. Mobile apps have limited formatting support.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '40px', textAlign: 'center', fontSize: '14px', color: '#94a3b8', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+          A free tool from <strong>CNAT Title</strong> • Questions? Contact your escrow officer
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(React.createElement(SignatureGenerator), document.getElementById('root'));
+</script>
+</body>
+</html>
