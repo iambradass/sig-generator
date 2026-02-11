@@ -24,6 +24,17 @@
   .st { font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 0 16px 0; }
   .fl { display: block; font-size: 14px; font-weight: 500; color: #334155; margin-bottom: 4px; }
   .fh { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  @keyframes fadeScaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .sig-preview { animation: fadeScaleIn 0.4s ease-out; }
+  .dropzone {
+    border: 2px dashed #cbd5e1; border-radius: 8px; padding: 20px; text-align: center;
+    cursor: pointer; transition: all 0.2s; background: #f8fafc;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: #f59e0b; background: #fffbeb; }
+  .dropzone img { max-width: 80px; max-height: 80px; border-radius: 4px; object-fit: cover; }
 </style>
 </head>
 <body>
@@ -37,12 +48,29 @@ function SignatureGenerator() {
     website: '', websiteDisplay: '', iabsUrl: '', licenseNumber: '', photoUrl: ''
   });
   const [copied, setCopied] = useState(false);
+  const [dragover, setDragover] = useState(false);
   const sigRef = useRef(null);
+  const fileRef = useRef(null);
 
   const h = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(p => ({ ...p, [name]: value }));
   }, []);
+
+  const handleFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => setFormData(p => ({ ...p, photoUrl: e.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragover(false);
+    handleFile(e.dataTransfer.files[0]);
+  };
+
+  const removePhoto = () => setFormData(p => ({ ...p, photoUrl: '' }));
 
   const copy = async () => {
     const el = sigRef.current;
@@ -135,17 +163,50 @@ function SignatureGenerator() {
             </div>
 
             <div className="card">
-              <h2 className="st"><span className="sb">3</span>Required Disclosures</h2>
+              <h2 className="st"><span className="sb">3</span>Photo & Disclosures</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label className="fl">Headshot / Photo</label>
+                  {d.photoUrl ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img src={d.photoUrl} alt="Preview" style={{ width: '64px', height: '64px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e2e8f0' }} />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '13px', color: '#334155', marginBottom: '6px' }}>Photo added</p>
+                        <button onClick={removePhoto} style={{
+                          padding: '4px 12px', fontSize: '12px', border: '1px solid #fca5a5', background: '#fef2f2',
+                          color: '#dc2626', borderRadius: '6px', cursor: 'pointer'
+                        }}>Remove</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div
+                        className={`dropzone${dragover ? ' dragover' : ''}`}
+                        onClick={() => fileRef.current.click()}
+                        onDrop={onDrop}
+                        onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
+                        onDragLeave={() => setDragover(false)}
+                      >
+                        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                          onChange={(e) => handleFile(e.target.files[0])} />
+                        <svg width="32" height="32" fill="none" stroke="#94a3b8" viewBox="0 0 24 24" strokeWidth="1.5" style={{ margin: '0 auto 8px' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-3 3m3-3l3 3M4 16l.586.586a2 2 0 001.414.586h12a2 2 0 001.414-.586L20 16" />
+                        </svg>
+                        <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                          <strong>Click to upload</strong> or drag & drop
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>JPG, PNG, or WebP</p>
+                      </div>
+                      <p className="fh" style={{ marginTop: '8px' }}>Or paste a URL below:</p>
+                      <input className="fi" type="url" name="photoUrl" value={d.photoUrl} onChange={h}
+                        placeholder="https://example.com/your-photo.jpg" style={{ marginTop: '4px' }} />
+                    </div>
+                  )}
+                </div>
                 <div>
                   <label className="fl">IABS Link <span style={{color:'#ef4444'}}>*</span></label>
                   <input className="fi" type="url" name="iabsUrl" value={d.iabsUrl} onChange={h} placeholder="https://www.trec.texas.gov/forms/information-about-brokerage-services" />
                   <p className="fh">Texas law requires this link. Get yours from your broker or use TREC's default form.</p>
-                </div>
-                <div>
-                  <label className="fl">Photo URL <span style={{color:'#94a3b8', fontWeight:400}}>(optional)</span></label>
-                  <input className="fi" type="url" name="photoUrl" value={d.photoUrl} onChange={h} placeholder="https://example.com/your-photo.jpg" />
-                  <p className="fh">Direct link to a headshot image (must end in .jpg, .png, etc.)</p>
                 </div>
               </div>
             </div>
@@ -170,7 +231,7 @@ function SignatureGenerator() {
 
               <div style={{ border: '2px dashed #e2e8f0', borderRadius: '8px', padding: '24px', background: '#f8fafc', minHeight: '180px' }}>
                 {has ? (
-                  <div ref={sigRef} style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: 1.5, color: '#333' }}>
+                  <div ref={sigRef} className="sig-preview" key={d.name + d.title + d.company} style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: 1.5, color: '#333' }}>
                     <table cellPadding="0" cellSpacing="0" style={{ borderCollapse: 'collapse' }}><tbody><tr>
                       {d.photoUrl && <td style={{ paddingRight: '15px', verticalAlign: 'top' }}>
                         <img src={d.photoUrl} alt={d.name} style={{ width: '80px', height: '80px', borderRadius: '4px', objectFit: 'cover' }} onError={e => e.target.style.display='none'} />
