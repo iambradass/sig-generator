@@ -164,6 +164,17 @@ const FONTS = [
   { label: 'Palatino', value: "'Palatino Linotype', 'Book Antiqua', Palatino, serif" },
 ];
 
+const NAME_FONTS = [
+  { label: 'Same as body font', value: '' },
+  { label: 'Brush Script MT', value: "'Brush Script MT', cursive" },
+  { label: 'Lucida Handwriting', value: "'Lucida Handwriting', cursive" },
+  { label: 'Segoe Script', value: "'Segoe Script', cursive" },
+  { label: 'Bradley Hand', value: "'Bradley Hand', cursive" },
+  { label: 'Snell Roundhand', value: "'Snell Roundhand', cursive" },
+  { label: 'Comic Sans MS', value: "'Comic Sans MS', cursive" },
+  ...FONTS,
+];
+
 const SOCIALS = [
   { key: 'linkedin',  label: 'LinkedIn',  color: '#0A66C2', abbr: 'in', placeholder: 'https://linkedin.com/in/yourname' },
   { key: 'facebook',  label: 'Facebook',  color: '#1877F2', abbr: 'f',  placeholder: 'https://facebook.com/yourpage' },
@@ -192,6 +203,7 @@ function SignatureGenerator() {
   });
   const [style, setStyle] = useState({
     font: 'Arial, sans-serif',
+    nameFont: '',
     lineSpacing: 1.5,
     sectionGap: 8,
     photoShape: 'rounded',
@@ -579,6 +591,15 @@ function SignatureGenerator() {
                   </select>
                 </div>
                 <div>
+                  <label className="fl">Name Font</label>
+                  <select className="fi" value={s.nameFont}
+                    onChange={(e) => setStyle(p => ({ ...p, nameFont: e.target.value }))}>
+                    {NAME_FONTS.map(f => (
+                      <option key={f.label} value={f.value} style={{ fontFamily: f.value || s.font }}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="fl">Photo Shape</label>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                     {['square', 'rounded', 'circle'].map(shape => (
@@ -709,7 +730,7 @@ function SignatureGenerator() {
                   ...(previewBg !== 'transparent' ? bgStyles[previewBg] : {})
                 }}>
                 {has ? (
-                  <div ref={sigRef} className="sig-preview" key={d.name + d.title + d.company + s.font}
+                  <div ref={sigRef} className="sig-preview" key={d.name + d.title + d.company + s.font + s.nameFont}
                     style={{ fontFamily: s.font, fontSize: '14px', lineHeight: s.lineSpacing, color: '#333' }}>
                     <table cellPadding="0" cellSpacing="0" className="sig-table" style={{ borderCollapse: 'collapse', background: 'transparent', width: '100%', maxWidth: '500px' }}><tbody><tr>
                       {(d.photoUrl || d.logoUrl) && <td style={{ paddingRight: '12px', verticalAlign: 'top', width: '1px' }}>
@@ -722,7 +743,7 @@ function SignatureGenerator() {
                           onError={e => e.target.style.display='none'} />}
                       </td>}
                       <td style={{ verticalAlign: 'top', wordBreak: 'break-word' }}>
-                        {d.name && <div style={{ fontWeight: 'bold', fontSize: '16px', color: s.nameColor, marginBottom: gap }}>{d.name}</div>}
+                        {d.name && <div style={{ fontWeight: 'bold', fontSize: '16px', color: s.nameColor, marginBottom: gap, fontFamily: s.nameFont || s.font }}>{d.name}</div>}
                         {d.title && <div style={{ color: s.textColor, marginBottom: gap }}>{d.title}</div>}
                         {d.company && <div style={{ color: s.textColor, marginBottom: gap }}>{d.company}</div>}
                         {d.licenseNumber && <div style={{ color: s.textColor, fontSize: '12px', marginBottom: gap }}>{d.licenseNumber}</div>}
