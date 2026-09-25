@@ -1,0 +1,31 @@
+name: Agent verification
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify the proposed changes
+        env:
+          REVIEW_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          cmd = ['python3', '.agent-workflow/verify.py']
+          base = os.environ.get('REVIEW_BASE')
+          cmd += ['--base', base] if base else ['--full']
+          subprocess.run(cmd, check=True)
+          PY

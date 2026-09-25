@@ -1,0 +1,7 @@
+# BEGIN agent-workflow privacy
+.agent-workflow/
+.github/
+AGENTS.md
+CLAUDE.md
+PROJECT.md
+# END agent-workflow privacy
